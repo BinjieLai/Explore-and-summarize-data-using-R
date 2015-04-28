@@ -1,0 +1,453 @@
+Air Quality Index Analysis by Binjie Lai
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+
+
+library(gridExtra)
+
+library(ggplot2)
+
+library(scales)
+
+library(knitr)
+
+library(dplyr)
+
+library(reshape)
+
+library(GGally)
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+getwd()
+setwd("/Users/bufan/Documents/udacity/R/EDA_Course_Materials/Project")
+bsg <- read.csv('BJ-SH-GZ.csv')
+names(bsg)
+summary(bsg)
+```
+#### This is the dataset about some air quality index for three cities in China, Beijing, Shanghai and Guangzhou. This data is obtained from the Minisitry of Environmental Protection website in China. All the index are from Mar 1 2013 to Feb 28 2014, lasing one year.
+
+=============================================================================
+
+# Univariate Plots Section
+
+## In this section, I want to know some general information about the dataset.
+
+## Histogram of Visibility for All Cities
+#### Visibility values are between 0 and 30. 
+#### Why the visibility of 30, the max, has so many counts? Visibility is measured by the distance you can see in daytime. When it is higher than 30km, the visibility is recorded with 30. Therefore there are many counts for 30.
+```{r echo=FALSE, Univariate_Plots_3}
+ggplot(data = bsg, aes(x = visibility)) +
+  geom_histogram(binwidth = 0.5) +
+  scale_x_continuous(breaks = seq(0, 30, 2)) +
+  ggtitle("Histogram of Visibility for All Cities")
+
+summary(bsg$visibility)
+```
+
+## Histogram of RH in Beijing
+#### In most days, the Relative Humidity of Beijing is between 30 and 80.
+```{r echo=FALSE, Univariate_Plots_4}
+ggplot(data = subset(bsg, City == "Beijing"), aes(x = RH)) +
+  geom_histogram(binwidth = 2, fill = "coral", color = "black") +
+  ggtitle("Histogram of Relative Humidity in Beijing")
+```
+
+## Histogram of PM2.5 for All Cities
+#### Most values of PM2.5 is between 0 and 100. The mean PM2.5 is 65.22 and the median is 50.69.
+```{r echo=FALSE}
+ggplot(data = bsg, aes(x = PM2.5)) +
+  geom_histogram(binwidth = 1) +
+  xlim(0, 200) +
+  ggtitle("Histogram of PM2.5 for All Cities")
+summary(bsg$PM2.5)
+```
+
+## Contrast in Three Cities for Histogram of PM2.5
+#### In general, Beijing has higher value of PM2.5 than Guangzhou and Shanghai. This plot refects the serious air pollution in Beijing.
+```{r echo=FALSE}
+ggplot(data = bsg, aes(x = PM2.5, fill = City, color = City)) +
+  xlim(0, 300) +
+  geom_histogram(binwidth = 10) +
+  ggtitle("Contrast in Three Cities for Histogram of PM2.5") +
+  scale_fill_brewer(type = 'div') +
+  facet_wrap( ~City, ncol = 1 ) 
+```
+
+## New variable PM and its histogram for all cities
+```{r echo=FALSE}
+bsg$PM <- (bsg$PM2.5 + bsg$PM10) / 2
+ggplot(data = bsg, aes(x = PM)) +
+  geom_histogram(binwidth = 1) +
+  xlim(0, 200) +
+  ggtitle("Histogram of PM for All Cities")
+```
+
+=============================================================================
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+#### It is a long form dataset, inluding date factors and air quality index.
+
+### What is/are the main feature(s) of interest in your dataset?
+#### The main features are PM2.5 and visibility. PM2.5 is drawing more and more attention in China as many cities are suffering from it. Visibility is straight forward and usually relates to PM2.5. I'd like to find out how PM2.5 changes with time, and what the relationship with PM2.5, visibility and other index.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+#### All the air quality index are importance influence factor. I will focus on PM10, Relative Humidity, Wind Speed, etc.
+
+### Did you create any new variables from existing variables in the dataset?
+#### Yes. I created a variable for the Particular Matters(PM), as the mean of PM10 and PM2.5. PM10 and PM2.5 are both belong to particular matters but with different diameters. PM is a good variable to represent them.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+#### I long-transformed the dataset, and make "city" as a column. There were a few NA in the dataset. I will filter them out if it is necessary in the next few sections. 
+#### For example, if I want to divide visibility into three parts, (0, 10], (10, 20], (20, 30], I need to filter out all the point where visibility is NA. I use code "subset(bsg, !is.na(visibility))".
+
+=============================================================================
+
+# Bivariate Plots Section
+
+## Select key index as a new dataset & make scatterplot matrices
+```{r echo=FALSE}
+keyindex <- bsg[, c("PM2.5", "PM10", "WS", "Temp", "RH", "visibility")]
+keyindex <- keyindex[complete.cases(keyindex),]
+
+ggpairs(keyindex[sample.int(nrow(keyindex), 90), ])
+
+
+```
+
+#### I want to check the trends of visbility and PM2.5 in the whole year
+#### Visibility is higher from July to November. Summer has better visibility in China, which means better air quality.
+
+## Time Series Plot for Visibility for All Cities
+```{r echo=FALSE}
+bsg$Date <- as.Date(bsg$Date, "%m/%d/%y")
+ggplot(bsg, aes(Date, visibility)) +
+  geom_line(color = "blue") +
+  geom_smooth() +
+  scale_x_date(breaks = "2 month") +
+  ggtitle("Time Series Plot for Visibility for All Cities")
+```
+
+## Time Series Plot for PM2.5 for All Cities
+```{r echo=FALSE}
+bsg$Date <- as.Date(bsg$Date, "%m/%d/%y")
+ggplot(bsg, aes(Date, PM2.5)) +
+  geom_line(color = "coral") +
+  geom_smooth() +
+  scale_x_date(breaks = "2 month") +
+  ggtitle("Time Series Plot for PM2.5 for All Cities")
+```
+
+
+#### PM2.5 in winter is higher than summer. High PM2.5 means low air quality. Then I make the scatterplot for visibility and PM2.5, and calculate the correlation coefficient. It is -0.656, less than -0.3, which mean it is meaningful, but small relationship between PM2.5 and visibility.
+
+## Scatterplot for PM2.5 and visibility for All Cities.
+```{r echo=FALSE}
+ggplot(data = bsg, aes(PM2.5, visibility)) +
+  geom_jitter() +
+  ggtitle("Scatterplot for PM2.5 and visibility for All Cities")
+
+with(bsg, cor.test(PM2.5, visibility, method = 'pearson'))
+```
+
+#### I make the box plot for PM2.5 and visibilityfor All Cities.
+```{r echo=FALSE}
+bsg.nona <- subset(bsg, !is.na(visibility))
+bsg.nona$visi_cut <-  cut(bsg.nona$visibility, c(0, 10, 20, 30))
+ggplot(data = bsg.nona, aes(visi_cut, PM2.5)) +
+  geom_boxplot(size = 1) +
+  xlab("Visibility") +
+  ggtitle("PM2.5 vs. Visibilty for All Cities")
+```
+
+#### Remove the outliners.
+#### Higher PM2.5 leads to lower visibility.
+```{r echo=FALSE}
+ggplot(data = bsg.nona, aes(visi_cut, PM2.5)) +
+  geom_boxplot(size = 1) +
+  xlab("Visibility") +
+  ylab("PM2.5") +
+  scale_y_continuous(limits = c(0,200)) +
+  ggtitle("PM2.5 vs. Visibilty for All Cities")
+```
+
+
+
+#### I want to know more about visibility. What other feature may also influence visibility? I'd like to try PM10, RH, WS, Temp. To make the analysis more acurrate, I only focus on Beijing.
+#### Here are the correlation coefficients. 
+#### PM10 vs. visibility: -0.53
+#### RH vs. visibility: -0.35
+#### WS vs. visibility: -0.21
+#### Temp vs. visibility: 0.27
+#### From the result above, PM10 and PM2.5 have strong correlation with visibility, while relative humidity, wind speed and temperature have small or non-meaningful correlation with visbility.
+
+```{r echo=FALSE}
+bsg_b <- subset(subset(bsg, !is.na(visibility)), City == "Beijing")
+p1 <- ggplot(data = bsg_b, aes(PM10, visibility)) +
+  geom_jitter() +
+  ylim(0, 30) +
+  ggtitle("Visibility vs. PM10 in Beijing")
+p2 <- ggplot(data = bsg_b, aes(RH, visibility)) +
+  geom_jitter() +
+  ggtitle("Visibility vs. Relative Humidity in Beijing")
+p3 <- ggplot(data = bsg_b, aes(WS, visibility)) +
+  geom_jitter() +
+  ggtitle("Visibility vs. Wind Speed in Beijing")
+p4 <- ggplot(data = bsg_b, aes(Temp, visibility)) +
+  geom_jitter() +
+  ggtitle("Visibility vs. Temperature in Beijing")
+
+grid.arrange(p1, p2, p3, p4, ncol = 2)
+
+with(bsg, cor.test(PM10, visibility, method = 'pearson'))
+with(bsg, cor.test(RH, visibility, method = 'pearson'))
+with(bsg, cor.test(WS, visibility, method = 'pearson'))
+with(bsg, cor.test(Temp, visibility, method = 'pearson'))
+```
+
+#### Just for my curiosity, I wonder whether strong wind can blow PM2.5 away and result in low pollution. So I test the relationship between PM2.5 and Wind Speed. The correlation coefficient is -0.25, no less than -0.3. It seems that PM2.5 has little relationship with wind speed.
+
+```{r echo=FALSE}
+ggplot(data = bsg, aes(WS, PM2.5)) +
+  geom_jitter() +
+  ggtitle("PM2.5 vs. Wind Speed in All Cities")
+
+with(bsg, cor.test(WS, PM2.5, method = 'pearson'))
+```
+
+=============================================================================
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+#### Firstly, I plot the scatterplot matrices for the six key index, to see the inter relationship between any of the two. 
+#### Then I make time series plots in terms of visibility and PM2.5, the features of interest. It turns out that summer time has better air quality, with hgiher visibility and lower PM2.5. 
+#### Finally I try to figure out the influence factors on visibilty. I have analyzed PM2.5, PM10, Relative Humidity, wind speed and temperature. PM2.5 and PM10 stand out and show their effect on visibility. Relative humidity seems also have relationship with visibility, and I will figure it out in the next section.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+#### I check the relationship between PM2.5 and wind speed. It seems that when wind speed increases, it is less likely to have a PM2.5-polluted day. Strong wind blows little particular materials away!
+
+### What was the strongest relationship you found?
+#### Visibility has strong relationship with PM2.5 and PM10, but they are not linear related. Visibility has less variance when PM2.5 and PM10 are low.
+
+=============================================================================
+
+# Multivariate Plots Section
+
+## Heat Map for Visibility for all Cities.
+#### Obviously, visibility in the range from March to September is better than from September to the next March. 
+```{r echo=FALSE}
+bsg.nona <- subset(bsg, !is.na(visibility))
+
+bsg.nona$season <-  cut(bsg.nona$Month, c(0, 3, 6, 9, 12))
+season_groups <- group_by(bsg.nona, season, Day)
+
+bsg.season <- summarise(season_groups,
+                        mean_visi = mean(visibility))
+                           
+ggplot(data = bsg.season, aes(x = Day, y = season, fill = mean_visi)) +
+  geom_tile() +
+  scale_fill_gradient(low = "black", high = "white") +
+  ggtitle("Heat Map for Visibility for All Cities")
+```
+
+
+#### The fact that winter has worse air quality may be the result from heating system whose energy comes from coal burning. However, only Beijing has heating system, while Shanghai and Guangzhou, in southern China, do not burn coal for heating in winter. So I wonder what is the trends of visibility and PM2.5 for the three cities, respectively.
+#### From those two plots below, winter's influence on air quality only works in Beijing, where both visibiity and PM2.5 show poorer air quality in winter. However, the two index keep stable in the whole year in Guangzhou. And in Shanghai PM2.5 is stable while visibility has a peak in summer. I guess it is because Shanghai is usually stormy in summer. Visibility usually increases after heavy rains.
+
+## Time Series Plot for Visibility in Three Cities
+```{r echo=FALSE}
+bsg$Date <- as.Date(bsg$Date, "%m/%d/%y")
+ggplot(bsg, aes(Date, visibility, color = City))+
+  geom_line() +
+  geom_smooth() +
+  facet_wrap( ~ City, ncol = 1) +
+  scale_x_date(breaks = "2 month") +
+  ggtitle("Time Series Plot for Visibility")
+```
+
+## Time Series Plot for PM2.5 in Three Cities
+```{r echo=FALSE}
+bsg$Date <- as.Date(bsg$Date, "%m/%d/%y")
+ggplot(bsg, aes(Date, PM2.5, color = City))+
+  geom_line() +
+  geom_smooth() +
+  facet_wrap( ~ City, ncol = 1) +
+  scale_x_date(breaks = "2 month") +
+  ggtitle("Time Series Plot for PM2.5")
+```
+
+#### In the last section, relative humidity seems linear related to visibility, which is strange. I wonder whether it is true for the other two cities. So I'd like to check the relationship between RH and visibility in different cities.
+#### Base on the plot and coefficients, in Guangzhou and Shanghai, the coefficients are 0.04 and -0.39. Therefore RH seems not related to visibility. The linear relationship with coefficient -0.65 in Beijing may be a coincidence. 
+
+```{r echo=FALSE}
+bsg.nona <- subset(bsg, !is.na(visibility))
+
+ggplot(data = bsg.nona, aes(RH, visibility, color = City)) +
+  geom_jitter() +
+  facet_wrap( ~ City, ncol = 1) + 
+  ggtitle("Visibility vs. Relative Humidity")
+
+bsg.bj <- subset(bsg.nona, bsg.nona$City == "Beijing")
+bsg.gz <- subset(bsg.nona, bsg.nona$City == "Guangzhou")
+bsg.sh <- subset(bsg.nona, bsg.nona$City == "Shanghai")
+cor(bsg.bj$RH, bsg.bj$visibility, method = 'pearson')
+with(bsg.gz, cor(RH, visibility, method = 'pearson'))
+with(bsg.sh, cor(RH, visibility, method = 'pearson'))
+```
+
+#### I also want to double check the relationship between wind speed and visibility. It is also only true for Beijing?
+#### It turns out that in Guangzhou and Shanghai, where has better air quality, wind speed has little influence on PM2.5 or visibility. However, Beijing is more polluted, and when wind speed increases, it is less likely to have a PM2.5-polluted day. Strong wind only works in Beijing!
+#### Besides, the coefficients for wind speed and visibility for three cities are 0.32, 0.089 and 0.23. Therefore there is no clear linear relaitionship between them.
+
+```{r echo=FALSE}
+ggplot(data = bsg, aes(WS, PM2.5, color = City)) +
+  geom_jitter() +
+  facet_wrap( ~ City, ncol = 1) + 
+  ggtitle("PM2.5 vs. Wind Speed")
+```
+
+```{r echo=FALSE}
+ggplot(data = bsg, aes(WS, visibility, color = City)) +
+  geom_jitter() +
+  facet_wrap( ~ City, ncol = 1) + 
+  ggtitle("Visibility vs. Wind Speed")
+
+with(bsg.bj, cor(WS, visibility, method = 'pearson'))
+with(bsg.gz, cor(WS, visibility, method = 'pearson'))
+with(bsg.sh, cor(WS, visibility, method = 'pearson'))
+```
+
+
+
+#### Therefore, I guess the meteorologic index like relative humidity and wind speed have less effect on visibility, while the environmental index like Particular materials do have strong effect on visibility. In the dataset, there are two more meterologic index, sea level pressure and dewpoint; and two more environmental index, NO2 and SO2. I will demonstrate the fact that envrionmental index are more significant than meteorologic index with the four new index later in the summary section.
+
+============================================================================
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+#### First, different cities have different visibility performances. Analysis on other features must base on every city. Combine the data from all the cities may lead to wrong conclusion.
+#### In general, air quality in summer is better than winter.
+
+### Were there any interesting or surprising interactions between features?
+#### Yes. I used to believe strong wind can aways bring nice air and must be the most important factor. However, after investigating the relationship between it and visibility, I realize that wind speed only works in some area. In other places, maybe other factors are more significant than wind speed.
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+=============================================================================
+
+# Final Plots and Summary
+
+### Plot One
+#### Heat Map for Visibility for Three Cities.
+```{r echo=FALSE}
+bsg.nona <- subset(bsg, !is.na(visibility))
+
+bsg.nona$season <-  cut(bsg.nona$Month, c(0, 3, 6, 9, 12))
+season_groups <- group_by(bsg.nona, season, Day, City)
+
+bsg.season <- summarise(season_groups,
+                        mean_visi = mean(visibility))
+                           
+ggplot(data = bsg.season, aes(x = Day, y = season, fill = mean_visi)) +
+  geom_tile() +
+  facet_wrap( ~ City, ncol = 1) +
+  scale_fill_gradient(low = "black", high = "white") +
+  ggtitle("Heat Map for Visibility for Three Cities")
+```
+
+### Description One
+#### First, in general, visibility in the range from March to September is better than from September to the next March. Second,  the most polluted days with low visibility appear in Beijing. Third, visibility changes more dramatically in Beijing because it is more sensitive to natural conditions such as wind speed.
+
+=============================================================================
+
+### Plot Two
+```{r echo=FALSE}
+
+bsg$Temp_cut <-  cut(bsg$Temp, c(-10, 0, 20, 40))
+p9 <- ggplot(data = subset(bsg, !is.na(Temp)), 
+             aes(PM2.5, visibility, color = Temp_cut)) +
+  geom_point(size = 1) +
+  #xlab("Visibility") +
+  ggtitle("PM2.5 vs. Visibilty by Temp")
+
+bsg$Temp_cut <-  cut(bsg$Temp, c(-10, 0, 20, 40))
+p10 <- ggplot(data = subset(bsg, !is.na(Temp)), 
+              aes(PM2.5, log(visibility), color = Temp_cut)) +
+  geom_point(size = 1) +
+  facet_wrap(~City) +
+  #xlab("Visibility") +
+  ggtitle("PM2.5 vs. log(Visibilty) by Temp for Three Cities")
+
+grid.arrange(p9, p10, ncol = 1)
+with(bsg, cor.test(PM2.5, visibility, method = 'pearson'))
+with(bsg, cor.test(PM2.5, log(visibility), method = 'pearson'))
+```
+
+### Description Two
+#### PM2.5 seems linear related to log(visibility), according to the coefficient -0.77. Temperature has relative less effect on PM2.5 and visibility in Beijing, probably for that wind speed is more significant. In Guangzhou and Shanghai, low temperature is more likely to lead to high PM2.5 and low visibility.
+
+=============================================================================
+
+### Plot Three
+
+```{r echo=FALSE}
+bsg.nona$visi_cut <-  cut(bsg.nona$visibility, c(0, 10, 20, 30))
+bsg.nona <- bsg.nona[complete.cases(bsg.nona),]
+
+p11 <- ggplot(data = bsg.nona, aes(visi_cut, PM2.5, color = City)) +
+  geom_boxplot(size = 0.5) +
+  xlab("Visibility") +
+  ylab("PM2.5") +
+  facet_wrap( ~ City) +
+  scale_y_continuous(limits = c(0,200)) +
+  ggtitle("PM2.5 vs. Visibilty")
+
+p12 <- ggplot(data = bsg.nona, aes(visi_cut, PM10, color = City)) +
+  geom_boxplot(size = 0.5) +
+  xlab("Visibility") +
+  ylab("PM2.5") +
+  facet_wrap( ~ City) +
+  scale_y_continuous(limits = c(0,200)) +
+  ggtitle("PM10 vs. Visibilty")
+
+p13 <- ggplot(data = bsg.nona, aes(visi_cut, SO2, color = City)) +
+  geom_boxplot(size = 0.5) +
+  xlab("Visibility") +
+  ylab("PM2.5") +
+  facet_wrap( ~ City) +
+  scale_y_continuous(limits = c(0,25)) +
+  ggtitle("SO2 vs. Visibilty")
+
+p14 <- ggplot(data = bsg.nona, aes(visi_cut, NO2, color = City)) +
+  geom_boxplot(size = 0.5) +
+  xlab("Visibility") +
+  ylab("PM2.5") +
+  facet_wrap( ~ City) +
+  scale_y_continuous(limits = c(0,60)) +
+  ggtitle("NO2 vs. Visibilty")
+
+grid.arrange(p11, p12, p13, p14, ncol = 2)
+```
+
+### Description Three
+#### Base on the plot above, bigger variance on index appears when visibility is low. Variance decreases when visibility increases. In good days with high visibility, all the environmental index perform very well and keep in low level. However, bad air quality with low visibility may have more complex influencial factors that may result in pollution. Therefore the variance is bigger in low-visible days.
+
+------
+
+# Reflection
+#### The dateset about Beijing, Guangzhou and Shanghai contains some environmental and meteorologic index for one year(from March 2013 to February 2014). I explore the relationship between those index, and mainly focus on the influence from other index on visibility, for visibility is a straight forward standard for good or bad air quality. First I analysis the histogram of visibility to see its general performance. Then I plot the time series for visibility to see its trends in a whole year. After that I start to investigate the relationship between visibility and other factors. I find out that environmental index have stronger effect on visibility than meteorologic index. And PM2.5 and PM10 are essential factors. Meanwhile, I also investigate the different performances in three cities. Beijing is most polluted and suffers from low visibility, especially in winter as the result of heating system. Guangzhou and Shanghai are better in visibility and other index. 
+#### Thoughout the analysis, I don't how to connect different features at first. Then I decide to use visibility as the basic index as it is very straight forward. I also have trouble to analysis bivariate plot. They seem have no clear relationship! Calculating correlation coefficient helps a lot. However, linear regression cannot represent the relationship in the best way all the times. It is better for me to find other statistic method to do the analysis. My last struggle is to adjust the size of plot in HTML. I still can't figure it out...
+#### For the future work, I will be interesting to construct a model for visibility. But I do think there should be more features included for the model, considering different situation in different places. On the other hand, one-year data is not enough. Data with longer time range, like 5 to 10 years, or data with more detail information, like every hour performance in a whole day, will be very improtant for analyzing visibility.
